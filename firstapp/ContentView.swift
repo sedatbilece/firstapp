@@ -11,38 +11,71 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
+    @State private var newTitle = ""
+
+    var completedCount: Int {
+        items.filter { $0.isCompleted }.count
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationView {
+            VStack(spacing: 0) {
+                HStack {
+                    TextField("Yeni görev ekle...", text: $newTitle)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Ekle") {
+                        addItem()
                     }
+                    .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .onDelete(perform: deleteItems)
+                .padding()
+
+                if !items.isEmpty {
+                    Text("\(completedCount) / \(items.count) tamamlandı")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 8)
+                }
+
+                List {
+                    ForEach(items) { item in
+                        HStack {
+                            Button {
+                                toggleItem(item)
+                            } label: {
+                                Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(item.isCompleted ? .green : .gray)
+                                    .font(.title3)
+                            }
+                            .buttonStyle(.plain)
+
+                            Text(item.title)
+                                .strikethrough(item.isCompleted)
+                                .foregroundColor(item.isCompleted ? .secondary : .primary)
+                        }
+                    }
+                    .onDelete(perform: deleteItems)
+                }
             }
+            .navigationTitle("Yapılacaklar")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
+                EditButton()
             }
-        } detail: {
-            Text("Select an item")
         }
     }
 
     private func addItem() {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
         withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+            modelContext.insert(Item(title: trimmed))
+            newTitle = ""
+        }
+    }
+
+    private func toggleItem(_ item: Item) {
+        withAnimation {
+            item.isCompleted.toggle()
         }
     }
 
